@@ -20,3 +20,51 @@ AI 提效实践：熟练运用公司自研 OpenCode 平台（接入 KIMI/DeepSee
 开发：Python、Java(Spring Boot/MyBatis-Plus)、SQL、FastAPI、Airflow、Postman、EasyExcel、CAD、SurfaceEvolver、Origin。
 AI 与数据：RAG、LLM 应用开发（提示词工程/Agent 工具/MCP）、Langfuse、Milvus、Neo4j、Redis、S3、Doris/Hive/Iceberg。
 语言：IELTS 7.5（流利商务英语）、CET-6 504。
+六、接口 API 清单及实现方式（附录）
+以下为本人在智能 FA 系统、质量智能体、智能工艺设计等项目中的 REST 接口（共 42 个），按模块分组。实现共性：Java（Spring Boot + MyBatis-Plus + PageHelper + @DSTransactional + EasyExcel + Redis + S3 + PowerJob）与 Python（FastAPI）前后端分工；性能与稳定性手段含串行队列 + @Async 异步调用、504 超时容错、异步导出 + 双层 Redis 缓存 + S3 预签名 URL 复用、EasyExcel 流式多 Sheet 导出、批量判重插入、预聚合查询等。
+接口	功能	实现方式 / 关键点
+1. TTY AI 看板｜/v1/aiBoardChat（7 个，Java 7 + 回调；Python 端 /api/opencode/chat）
+POST /chat	对话入口：首轮发起 / 续轮轮询进度 / 携 message 回答澄清追问；multipart 支持 xlsx/txt 上传	插库(status=processing)立即返回，公平锁串行队列 + @Async 调 Python（RestTemplate 30s/360s）；Python 调 OpenCode 平台（MiniMax-M2.5），数据预聚合 JSON 上传 S3 传入提示词；状态机 queue→processing→clarify/success/failed，504 容错、6 分钟强判超时
+POST /listAll	当前用户看板分页列表	PageHelper 分页
+POST /delete	批量删除看板	权限校验 + 批量删除
+POST /edit	修改看板标题	更新 tty_ai_board 元数据
+POST /getUrl	按看板 id 取图表 HTML 内容	boto3 从 S3 读取返回
+GET /download	图表 HTML 流式下载	8KB 缓冲流式写
+POST /uploadChart	Python 回调：生成图表 HTML 回传 S3，返回 fileId	ai_board_chat_service.py 回调上传，前端 viewer 渲染
+2. 质量智能体结果展示｜/v1/mpaIssueDetail（6 个）
+GET /{taskId}	按任务查 Agent 执行结果详情	读 mpa_tool_display 表（Python 管线自动落库：display_persistence 拆 DisplaySpec → issue_detail_collector 直连 IPD MySQL 批量 INSERT）
+POST /save	结果详情批量保存	批量 INSERT
+GET /getShareLiableList	共享人列表	查 mpa_issue_share 表
+POST /updateShareConfig	更新共享配置（共享人 + 开关）	共享白名单维护
+GET /checkShareAccess	校验共享访问权限	三级权限：admin 直达 / 负责人 / 共享名单
+GET /getEmployeePage	员工分页（共享人选择）	PageHelper 分页
+3. 智能工艺设计向量化｜/v1/planVector/milvus（4 个）
+POST /insert	文档切块→768 维向量化→写入 Milvus	启动自动建集合 + HNSW 索引；千条分批插入 + 失败回滚；SHA256 内容哈希去重
+POST /updateEnabled	文档启用 / 停用	Milvus 无部分更新，query+upsert 实现
+DELETE /deleteByFileId	按文件删除全部 chunks	file_id 批量删除
+POST /checkDuplicate	文件级严格查重	哈希匹配 + 整文件 chunk 集合相等判定
+4. 断带智能监测｜/v1/stripBreakDetection（6 个）
+GET /deteriorationTop	恶化 Top N（基地/项目/供应商维度 + 判责）	两阶段环比计算，按卷号去重聚合
+GET /overview	总览统计	预聚合查询
+GET /queryProjects	项目列表查询	MySQL 分页
+GET /export/deteriorationTop	恶化 Top 导出	EasyExcel 多 Sheet 流式写
+GET /export/liabilityPie	判责饼图数据导出	EasyExcel 流式
+GET /threshold	全局判定阈值查 / 设	全局配置表
+（数据底座）	SMB 共享 CSV 全量/增量同步	瞬态错误自动重试、“卷号+时间”判重批量插入、Doris 批量回填
+5. 风险监测日志｜/v1/riskMonitorRecord（2 个）
+PUT /edit	编辑风险分析日志	状态枚举校验、日期整天归一化、@DSTransactional 事务更新
+GET /getAnomalyRecordDetail	异常记录明细分页	排序字段白名单 + PageHelper，全局序号替换自增 id
+6. 量产改善记录｜/v1/massProductionImprovementRecord（1 个）
+GET /improvementLibrary/queryStaged	查询定时任务根因推荐暂存结果	按 abnormalTaskCode 查 reason_measure_rel 暂存表转 VO；责任人确认后 submitAudit 正式落库提审
+7. MU 基地产品线｜/v1/muProductLine（8 个）
+POST /add｜PUT /modify｜GET /detail/{id}｜POST /page｜DELETE /batchDelete	全套 CRUD	MyBatis-Plus 标准实现 + PageHelper 分页
+POST /batchImport	Excel 批量导入	EasyExcel 读取 + saveBatch 分批入库
+GET /getaAnomalyRate	按基地查异常率	聚合查询
+PUT /updateAnomalyRate	更新异常率	事务更新
+8. 改善库｜/v1/improvement-library（7 个）
+POST /add｜PUT /modifyById｜GET /detail/{id}｜POST /page｜DELETE /batchDelete	全套 CRUD	参考件 S3 上传/流式下载
+POST /batchImport	批量导入	STOP/SKIP/OVERWRITE 三策略，“异常项#原因”去重键 + HashSet 快速过滤
+GET /downloadFile	参考文件下载	S3 预签名/流式
+9. 桌面云安全示警｜/v1/vdiLoginCheck（1 个）
+GET /check	桌面云外网登录检查	取当前用户邮箱前缀查 Doris VDI 登录记录；Citrix 直接判外网、深信服核 usr_ip 是否命中外网 IP 列表，命中返回警告文案
+
