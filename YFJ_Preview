@@ -4,8 +4,8 @@
 香港大学（HKU）｜电子与电气工程学院｜电气工程（硕士）｜2024.09–2025.11：GPA 2.80；核心课程：机器学习、智慧电网、可再生能源科学、投资学。
 中南大学（CSU）｜能源科学与工程学院｜能源与动力工程（本科）｜2020.09–2024.06：GPA 83.01/100；主修：电子技术、机械设计、工程流体力学、热力学。
 二、工作经历：宁德时代新能源科技股份有限公司｜工艺算法工程师｜2025.12–至今
-质量智能体（2026.06–至今｜Agent 开发）：开发 Agent 核心 MCP 工具——Neo4j FTA 失效模式/失效因子知识图谱读写（670 节点规模、15 项操作，雪花 ID+重名校验+事务化写入，关系类型白名单防注入）、Milvus 向量文档检索/管理（3000+ 知识 chunks、768 维，SHA256 精确匹配，四层去重+失败回滚）、相关性分析矩阵（scipy 计算 Pearson/Spearman/Kendall 三系数+显著性分级）；设计 Agent 结果展示闭环：工具输出自动拆解落业务库，Java 端提供任务详情/共享管理等 6 个 REST 接口，实现“admin/负责人/共享名单”三级权限的结果分享与访问控制。
-智能 FA 系统（2026.03–至今｜后端开发）① 独立完成 AI 看板（大模型对话式数据分析）：设计 Java(Spring Boot)+Python(FastAPI) 分工架构——Java 端 REST 入口/鉴权/良率数据预聚合上 S3、串行任务队列+异步调用（504 容错、6 分钟超时治理），Python 端多轮会话（Redis 会话 TTL 1h）并调用自托管 OpenCode 平台（MiniMax-M2.5），LLM 按 TTY 良率口径+强约束提示词直接产出 ECharts HTML 图表回调存 S3，前端按版本号增量轮询，状态机含 clarify 追问澄清，共 9 个 REST 接口，支持用户上传 xlsx/txt 分析。② 负责 30+ 业务 REST 接口开发与持续优化：断带智能监测（共享 CSV 增量同步+判重批量入库、恶化 Top 两阶段环比+判责分析、EasyExcel 流式导出）、风险监测日志（事务更新+白名单分页+异步导出/Redis 缓存/S3 预签名 URL）、改善库（STOP/SKIP/OVERWRITE 三策略批量导入）、MU 产品线（CRUD+批量导入）、桌面云外网登录安全示警等；持续 SQL 调优、批量导出、504 超时异步化。③ 量产改善定时任务优化：新增第三步“根因推荐（原因+改善措施）暂存”——轮询算法推荐接口结果批量暂存关联表，责任人经 queryStaged 确认后才正式落库提审，单条失败不阻断整批。
+质量智能体（2026.06–至今｜Agent 开发）：开发 Agent 核心 MCP 工具——Neo4j FTA 失效模式/失效因子知识图谱读写（670 节点规模、15 项操作，雪花 ID+重名校验+事务化写入，关系类型白名单防注入）、Milvus 向量文档检索/管理（3000+ 知识 chunks、768 维，SHA256 精确匹配，四层去重+失败回滚）、相关性分析矩阵（scipy 计算 Pearson/Spearman/Kendall 三系数+显著性分级）；并从零开发 13 个 Agent 工具 REST 接口供大模型函数调用（Neo4j /v1/neo4jTools 8 个：图谱多条件分页/多跳关系图/相邻节点/批量详情；Milvus /v1/milvusTools 4 个：向量+SHA256 哈希双模检索/file_id 分页/集合元信息；数据分析 /v1/dataAnalysisTools 1 个：相关性系数矩阵）；设计 Agent 结果展示闭环：工具输出自动拆解落业务库，Java 端提供任务详情/共享管理等 6 个 REST 接口，实现“admin/负责人/共享名单”三级权限的结果分享与访问控制。
+智能 FA 系统（2026.03–至今｜后端开发）① 独立完成 AI 看板（大模型对话式数据分析）：设计 Java(Spring Boot)+Python(FastAPI) 分工架构——Java 端 REST 入口/鉴权/良率数据预聚合上 S3、串行任务队列+异步调用（504 容错、6 分钟超时治理），Python 端多轮会话（Redis 会话 TTL 1h）并调用自托管 OpenCode 平台（MiniMax-M2.5），LLM 按 TTY 良率口径+强约束提示词直接产出 ECharts HTML 图表回调存 S3，前端按版本号增量轮询，状态机含 clarify 追问澄清，共 9 个 REST 接口，支持用户上传 xlsx/txt 分析。② 负责 40+ 业务 REST 接口开发与持续优化：断带智能监测（共享 CSV 增量同步+判重批量入库、恶化 Top 两阶段环比+判责分析、EasyExcel 流式导出）、风险监测日志（事务更新+白名单分页+异步导出/Redis 缓存/S3 预签名 URL）、改善库（STOP/SKIP/OVERWRITE 三策略批量导入）、MU 产品线（CRUD+批量导入）、FTA 因子推理（从零开发：按 FTA 树编号/失效模式+失效特征沿树回溯失效根因，X-Dept-Key 部门数据权限隔离）、桌面云外网登录安全示警等；持续 SQL 调优、批量导出、504 超时异步化。③ 量产改善定时任务优化：新增第三步“根因推荐（原因+改善措施）暂存”——轮询算法推荐接口结果批量暂存关联表，责任人经 queryStaged 确认后才正式落库提审，单条失败不阻断整批。
 智能工艺设计（2026.03–2026.05｜后端开发）：完成工艺设计文档向量化管理后端——切块→768 维向量→Milvus(HNSW)，千条分批插入+失败回滚，SHA256 文件级严格查重，“query+upsert” 实现启用/停用/删除。
 厂房用电能耗项目（2025.12–2026.03）：负责数据治理——基于 Hive/Iceberg/Doris 数据源统一跨部门指标口径与数据质量标准，构建 SQL+Airflow 数据流；参与 Python 数据分析平台产品化，封装服务接口支撑下游业务（涉及设备编码主数据、PSL 用电单元清单、工序量测等多源数据）。
 AI 提效实践：熟练运用公司自研 OpenCode 平台（接入 KIMI/DeepSeek/GLM-5.2/Qwen3.8/MiniMax2.7 等模型）与 GitHub Copilot 辅助 SQL/Python/Java 开发（该平台亦为 AI 看板的大模型执行引擎）。
@@ -21,7 +21,7 @@ AI 提效实践：熟练运用公司自研 OpenCode 平台（接入 KIMI/DeepSee
 AI 与数据：RAG、LLM 应用开发（提示词工程/Agent 工具/MCP）、Langfuse、Milvus、Neo4j、Redis、S3、Doris/Hive/Iceberg。
 语言：IELTS 7.5（流利商务英语）、CET-6 504。
 六、接口 API 清单及实现方式（附录）
-以下为本人在智能 FA 系统、质量智能体、智能工艺设计等项目中的 REST 接口（共 42 个），按模块分组。实现共性：Java（Spring Boot + MyBatis-Plus + PageHelper + @DSTransactional + EasyExcel + Redis + S3 + PowerJob）与 Python（FastAPI）前后端分工；性能与稳定性手段含串行队列 + @Async 异步调用、504 超时容错、异步导出 + 双层 Redis 缓存 + S3 预签名 URL 复用、EasyExcel 流式多 Sheet 导出、批量判重插入、预聚合查询等。
+以下为本人在智能 FA 系统、质量智能体、智能工艺设计等项目中的 REST 接口（共 56 个，其中模块 10/11 及工艺向量化接口均为从零开发），按模块分组。实现共性：Java（Spring Boot + MyBatis-Plus + PageHelper + @DSTransactional + EasyExcel + Redis + S3 + PowerJob）与 Python（FastAPI）前后端分工；性能与稳定性手段含串行队列 + @Async 异步调用、504 超时容错、异步导出 + 双层 Redis 缓存 + S3 预签名 URL 复用、EasyExcel 流式多 Sheet 导出、批量判重插入、预聚合查询等。
 接口	功能	实现方式 / 关键点
 1. TTY AI 看板｜/v1/aiBoardChat（7 个，Java 7 + 回调；Python 端 /api/opencode/chat）
 POST /chat	对话入口：首轮发起 / 续轮轮询进度 / 携 message 回答澄清追问；multipart 支持 xlsx/txt 上传	插库(status=processing)立即返回，公平锁串行队列 + @Async 调 Python（RestTemplate 30s/360s）；Python 调 OpenCode 平台（MiniMax-M2.5），数据预聚合 JSON 上传 S3 传入提示词；状态机 queue→processing→clarify/success/failed，504 容错、6 分钟强判超时
@@ -67,4 +67,11 @@ POST /batchImport	批量导入	STOP/SKIP/OVERWRITE 三策略，“异常项#原�
 GET /downloadFile	参考文件下载	S3 预签名/流式
 9. 桌面云安全示警｜/v1/vdiLoginCheck（1 个）
 GET /check	桌面云外网登录检查	取当前用户邮箱前缀查 Doris VDI 登录记录；Citrix 直接判外网、深信服核 usr_ip 是否命中外网 IP 列表，命中返回警告文案
+10. 质量智能体工具接口（从零开发）｜Neo4j /v1/neo4jTools（8 个）+ Milvus /v1/milvusTools（4 个）+ 数据分析 /v1/dataAnalysisTools（1 个）
+POST /nodePageList｜POST /nodePages｜GET /nodeDetail｜POST /nodeInfoList	Neo4j 知识图谱基础查询：节点多条件分页（域/关键词/精确匹配）、候选节点分页、节点详情、批量节点详情	统一 KnowledgeGraphModel 查询条件封装 + PageHelper 分页；@ApiTrace 用户行为追踪；业务/系统异常分层捕获，统一 CommonResultDto 响应
+POST /relationGraph｜POST /adjacentNodes｜GET /searchNode｜GET /knowledgeNodes	图谱结构化查询：关系图谱多跳展开、相邻节点查询（maxLinkLevel 控制层数）、名称+域定位节点、图谱节点遍历	Cypher 多跳展开，返回 nodes+relations+total 汇总；层数缺省读 LOV 配置（KNOWLEDGE_CONFIG）兜底，限制扩展深度防图谱爆炸
+POST /search｜GET /queryByFileId｜GET /list｜GET /getCollectionInfo	Milvus 向量工具：双模搜索（SHA256 哈希精确匹配/查询向量 topK 相似检索）、按 file_id 分页查询、分页列举、集合元信息	查询向量逐元素校验（null/NaN/Inf）；topK 默认 16384（Milvus 上限）；哈希精确匹配返回命中文件数；Milvus 原始结果统一 Map→VO（chunk_id/score/content/file_id）
+POST /correlationMatrix	相关性系数矩阵：Pearson/Spearman/Kendall 三系数 + p 值、缺失值策略、显著相关对提取与分级	纯 Java 实现：两两系数矩阵+p 值矩阵+样本数矩阵；缺失值删除/均值填充+最小样本数过滤；显著对按相关系数绝对值降序并分级（强/中/不显著）；变量数≤50 与 method/NA 策略枚举校验
+11. FTA 因子推理（从零开发）｜/v1/ftaFactorReason（1 个）
+POST /reasonFactor	因子推理：按 FTA 树编号/失效模式（至少其一）+ 失效特征名称，查询失效根因	X-Dept-Key 头识别部门并解析数据权限，定位已发布 FTA 树；特征节点沿父子关系回溯至根因节点（parent_id=0），去重保持命中顺序；组装根因/概率/工序/改善措施/机理
 
