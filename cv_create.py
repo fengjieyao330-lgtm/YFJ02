@@ -4,14 +4,16 @@
 并同步生成同名 PDF（依赖本机 Word + pywin32）。
 
 用法:
-    python cv_create.py <输出路径.docx> [照片路径.png]
+    python cv_create.py <输出路径.docx> [照片路径.png] [pdf路径.pdf]
 
-默认输出: 脚本同目录下 Jason_CV_2026_v9.docx（同目录同时生成 .pdf）
+默认输出: 脚本同目录下 Jason_CV_2026_v9.docx（同目录同时生成 .pdf，pdf 路径可用第 3 参数指定）
 默认照片: E:\\users\\YaoFJ01.CATLBATTERY\\Pictures\\IMG_2240.PNG
 """
 
 import os
 import sys
+import time
+from io import BytesIO
 
 from docx import Document
 from docx.shared import Pt, Cm
@@ -19,7 +21,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.enum.text import WD_TAB_ALIGNMENT, WD_ALIGN_PARAGRAPH
 
-DEFAULT_OUTPUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Jason_CV_2026_v9.docx')
+DEFAULT_OUTPUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Jason_CV_2026.docx')
 DEFAULT_PHOTO = r'E:\users\YaoFJ01.CATLBATTERY\Pictures\IMG_2240.PNG'
 
 USABLE_WIDTH_CM = 17.4
@@ -38,7 +40,7 @@ SECTIONS = [
         ('bullet', 'GPA', '83.01/100；主修课程：电子技术、机械设计、C语言、工程流体力学、热力学'),
     ]),
     ('工作/实习经历', [
-        ('entry', '2025.12-至今', '宁德时代新能源科技股份有限公司', '工艺算法工程师（2025.10 实习入职，12 月转正）'),
+        ('entry', '2025.12-至今', '宁德时代新能源科技股份有限公司', '智能体开发工程师（2025.10 实习入职，12 月转正）'),
         ('bullet', '质量智能体（2026.06-至今｜Agent 开发）', '开发 Neo4j FTA 知识图谱读写（670 节点）、Milvus 向量检索（3000+ chunks、768 维）等 MCP 工具与相关性分析矩阵，并从零开发 13 个 Agent 工具 REST 接口（图谱多跳遍历/向量+哈希双模检索）；构建结果展示闭环（自动落库、权限共享）'),
         ('bullet', '智能 FA 系统（2026.03-至今｜后端开发，数百人使用）', '① 独立完成 AI 看板（大模型对话式数据分析）：Java+Python 分工、异步队列+多轮会话，LLM 直接产出 ECharts 图表（存 S3），9 个 REST 接口，504 超时治理。② 30+ 业务 REST 接口开发与优化（全岗位累计独立开发 60+ REST 接口）：冷压断带智能监测与根因探索（异常卷判定、恶化 Top、原因与位置下钻、制程来料判责）、FTA 因子推理（失效特征回溯根因、部门级数据权限）、风险监测、改善经验库、工厂产品线、桌面云外网示警等；持续 SQL 调优、导出异步化（导出成功率 99%+）。③ 量产改善定时任务优化：新增第三步“根因推荐（原因+改善措施）暂存”，责任人确认后正式落库，单条失败不阻断整批'),
         ('bullet', '智能工艺设计（2026.03-2026.05｜后端开发）', '工艺文档向量化管理（Milvus/HNSW、文件级查重、启停）'),
@@ -127,6 +129,23 @@ def setCellWidth(cell, width_cm):
     tcW.set(qn('w:type'), 'dxa')
 
 
+def readPhotoStream(photo_path, retries=5, delay=2):
+    """读取照片并校验文件头，瞬时占用/读取损坏时自动重试，返回 BytesIO"""
+    last_err = None
+    for i in range(retries):
+        try:
+            with open(photo_path, 'rb') as f:
+                data = f.read()
+        except Exception as e:
+            last_err = e
+        else:
+            if data[:8] == b'\x89PNG\r\n\x1a\n' or data[:3] == b'\xff\xd8\xff':
+                return BytesIO(data)
+            last_err = ValueError('照片读取内容头部无效')
+        time.sleep(delay)
+    raise OSError('照片文件多次重试仍读取失败（可能被临时占用）: %s' % photo_path) from last_err
+
+
 def addHeaderTable(doc, photo_path):
     table = doc.add_table(rows=1, cols=2)
     tbl_pr = table._tbl.tblPr
@@ -157,7 +176,7 @@ def addHeaderTable(doc, photo_path):
     photo_p = right_cell.paragraphs[0]
     photo_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     photo_p.paragraph_format.space_before = Pt(2)
-    photo_p.add_run().add_picture(photo_path, height=Cm(3.0))
+    photo_p.add_run().add_picture(readPhotoStream(photo_path), height=Cm(3.0))
 
     return table
 
@@ -222,43 +241,83 @@ def createDocument(output_path, photo_path=DEFAULT_PHOTO):
     doc.save(output_path)
 
 
-def docxToPdf(docx_path):
-    """用本机 Word 将 docx 另存为同名 PDF；目标被安全策略拦截时给出提示，返回 PDF 路径或 None"""
+def isPathLocked(path):
+    """检测文件是否被其他进程占用（能打开即未占用）；文件不存在返回 False"""
+    if not os.path.exists(path):
+        return False
+    try:
+        with open(path, 'a+b'):
+            return False
+    except OSError:
+        return True
+
+
+def docxToPdf(docx_path, pdf_path=None, retries=3, delay=1.5):
+    """用本机 Word 将 docx 另存为 PDF；pdf_path 缺省为与 docx 同名。
+
+    目标文件被占用时明确提示并跳过（不崩溃）；返回 PDF 路径或 None
+    """
+    if pdf_path is None:
+        pdf_path = os.path.splitext(os.path.abspath(docx_path))[0] + '.pdf'
+    if isPathLocked(pdf_path):
+        print('警告: PDF 正被其他程序占用，无法另存（请关闭正在查看该 PDF 的'
+              '浏览器标签页、资源管理器预览窗格等，再重新运行）: %s' % pdf_path)
+        return None
+    if os.path.exists(pdf_path):
+        try:
+            os.remove(pdf_path)
+        except OSError as e:
+            print('警告: 旧 PDF 删除失败（文件被其他程序占用，关闭占用程序后重试）: %s' % e)
+            return None
     try:
         import win32com.client
         import pywintypes
     except ImportError:
         print('警告: 未安装 pywin32，跳过 PDF 生成（pip install pywin32）')
         return None
-    pdf_path = os.path.splitext(os.path.abspath(docx_path))[0] + '.pdf'
-    word = win32com.client.Dispatch('Word.Application')
-    word.Visible = False
+    word = None
     try:
+        word = win32com.client.Dispatch('Word.Application')
+        word.Visible = False
+        word.DisplayAlerts = 0  # wdAlertsNone：避免弹窗导致"命令失败"
         doc = word.Documents.Open(os.path.abspath(docx_path), ReadOnly=True)
+        last_err = None
+        for _ in range(retries):
+            try:
+                doc.SaveAs(pdf_path, FileFormat=17)  # wdFormatPDF = 17
+                doc.Close(False)
+                return pdf_path
+            except (pywintypes.com_error, OSError) as e:
+                last_err = e
+                time.sleep(delay)
+        print('警告: PDF 另存失败（常见原因：目标文件被其他程序占用，'
+              '关闭占用程序后重试即可；如被企业安全策略拦截，'
+              '请勿尝试改名或换目录绕过）: %s' % last_err)
         try:
-            doc.SaveAs(pdf_path, FileFormat=17)  # wdFormatPDF = 17
             doc.Close(False)
-            return pdf_path
-        except (pywintypes.com_error, OSError) as e:
-            doc.Close(False)
-            print('警告: PDF 另存失败（目标目录/文件名可能被企业安全策略拦截，'
-                  '请勿尝试改名或换目录绕过）: %s' % e)
-            return None
+        except Exception:
+            pass
+        return None
     finally:
-        word.Quit()
+        if word is not None:
+            try:
+                word.Quit()
+            except Exception:
+                pass
 
 
 def main():
     output_path = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_OUTPUT
     photo_path = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_PHOTO
+    pdf_path = sys.argv[3] if len(sys.argv) > 3 else None
     out_dir = os.path.dirname(os.path.abspath(output_path))
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
     createDocument(output_path, photo_path)
     print('CV 已生成: %s' % output_path)
-    pdf_path = docxToPdf(output_path)
-    if pdf_path:
-        print('PDF 已生成: %s' % pdf_path)
+    pdf_out = docxToPdf(output_path, pdf_path)
+    if pdf_out:
+        print('PDF 已生成: %s' % pdf_out)
 
 
 if __name__ == '__main__':
