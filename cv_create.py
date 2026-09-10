@@ -1,11 +1,12 @@
 """cv_create.py
 
-在指定路径创建与 Jason_CV_2026_v9.docx 内容和格式完全一致的 Word 版简历。
+在指定路径创建与 Jason_CV_2026_v9.docx 内容和格式完全一致的 Word 版简历，
+并同步生成同名 PDF（依赖本机 Word + pywin32）。
 
 用法:
     python cv_create.py <输出路径.docx> [照片路径.png]
 
-默认输出: 脚本同目录下 Jason_CV_2026_v9.docx
+默认输出: 脚本同目录下 Jason_CV_2026_v9.docx（同目录同时生成 .pdf）
 默认照片: E:\\users\\YaoFJ01.CATLBATTERY\\Pictures\\IMG_2240.PNG
 """
 
@@ -221,6 +222,32 @@ def createDocument(output_path, photo_path=DEFAULT_PHOTO):
     doc.save(output_path)
 
 
+def docxToPdf(docx_path):
+    """用本机 Word 将 docx 另存为同名 PDF；目标被安全策略拦截时给出提示，返回 PDF 路径或 None"""
+    try:
+        import win32com.client
+        import pywintypes
+    except ImportError:
+        print('警告: 未安装 pywin32，跳过 PDF 生成（pip install pywin32）')
+        return None
+    pdf_path = os.path.splitext(os.path.abspath(docx_path))[0] + '.pdf'
+    word = win32com.client.Dispatch('Word.Application')
+    word.Visible = False
+    try:
+        doc = word.Documents.Open(os.path.abspath(docx_path), ReadOnly=True)
+        try:
+            doc.SaveAs(pdf_path, FileFormat=17)  # wdFormatPDF = 17
+            doc.Close(False)
+            return pdf_path
+        except (pywintypes.com_error, OSError) as e:
+            doc.Close(False)
+            print('警告: PDF 另存失败（目标目录/文件名可能被企业安全策略拦截，'
+                  '请勿尝试改名或换目录绕过）: %s' % e)
+            return None
+    finally:
+        word.Quit()
+
+
 def main():
     output_path = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_OUTPUT
     photo_path = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_PHOTO
@@ -229,6 +256,9 @@ def main():
         os.makedirs(out_dir, exist_ok=True)
     createDocument(output_path, photo_path)
     print('CV 已生成: %s' % output_path)
+    pdf_path = docxToPdf(output_path)
+    if pdf_path:
+        print('PDF 已生成: %s' % pdf_path)
 
 
 if __name__ == '__main__':
